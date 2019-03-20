@@ -1,0 +1,65 @@
+# Python v3.6
+# August 26, 2017
+
+import urllib.request
+import json
+import pandas as pd
+
+    
+def openConnection():
+    urlStr = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
+    httpResponseObj = urllib.request.urlopen(urlStr)
+    return httpResponseObj
+
+def downloadJSON(httpResponseObj):
+    jsonObj = httpResponseObj.read().decode("utf-8")
+    return jsonObj
+
+# Optional
+def jsonOutputFile(jsonObj):
+    with open('jsonOutput.txt', 'w+') as fileObj:
+        fileObj.write(jsonObj)
+    fileObj.close()
+# end
+
+def conversionToDictionary(jsonObj):
+    dictionaryObj = json.loads(jsonObj)
+    return dictionaryObj
+
+def extractnumberOfRecords(dictionaryObj):
+    if 'recordsNum' in dictionaryObj['metadata']:
+        numberOfRecords = dictionaryObj['metadata']['recordsNum']
+    return numberOfRecords
+
+def extractListOfSubDict(dictionaryObj, numberOfRecords):
+    listOfSubDict = []
+    for i in range(numberOfRecords):
+        listOfSubDict.append(dictionaryObj['individualRecords'][i]['properties'])
+    return listOfSubDict
+
+def createDataFrame(listOfSubDict):
+    dataFrameOfRecords = pd.DataFrame(listOfSubDict, columns = ['foo', 'bar', 'observationEpochTime'])
+    return dataFrameOfRecords
+	
+        
+def main():
+    httpResponseObj = openConnection()
+    jsonObj = downloadJSON(httpResponseObj)
+    dictionaryObj = conversionToDictionary(jsonObj)
+    
+    numberOfRecords = extractnumberOfRecords(dictionaryObj)
+    listOfSubDict = extractListOfSubDict(dictionaryObj, numberOfRecords)
+    
+    dataFrameOfRecords = createDataFrame(listOfSubDict)
+    print(dataFrameOfRecords)
+    
+	
+if __name__ == "__main__":
+    main()
+	
+# ________________________________________________________
+
+
+# Example of JSON feed in 'readable' binary format
+
+# b'{"type":"FeatureData","metadata":{"reportEpochTime":1534000000,"title":"Extraordinary information","recordsNum":205},"individualRecords":[{"type":"observation","properties":{"foo":12,"bar":30,"foobar":5,"observationEpochTime":1533998000},"where":{"observationType":"singlePoint","coordinates":[37.7749,122.4194]}},{"type":"observation","properties":{"foo":21,"bar":3,"foobar":16,"observationEpochTime":1533998001},"where":{"observationType":"singlePoint","coordinates":[40.7128,74.0060]}},{"type":"observation","properties":{"foo":6,"bar":41,"foobar":41,"observationEpochTime":1533998010},"where":{"observationType":"singlePoint","coordinates":[41.8781,87.6298],...}]}}'
