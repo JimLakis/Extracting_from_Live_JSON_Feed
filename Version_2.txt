@@ -1,0 +1,95 @@
+# Python v3.6
+# March 19, 2019
+
+import urllib.request
+import json
+import time
+import pandas as pd
+
+
+def records_in_dataframe(dictionary_obj):
+    """ Extracts the number of quakes reported in the dictionary object, then loops over the dictionary extracting the individual records storing the records in a list and then converts the list of records into a Pandas dataframe """
+    def total_quakes(dictionary_obj):
+        """ Delves into the dictionary formatted report and extracts the number of quakes reported """
+        if 'count' in dictionary_obj['metadata']:
+            number_of_quakes = dictionary_obj['metadata']['count']
+        return number_of_quakes
+    
+    def extract_records(number_of_quakes, dictionary_obj):
+        """ Loops over the report, extracts the individual records and stores the records in a list """
+        list_of_records = []
+        for i in range(number_of_quakes):
+            list_of_records.append(dictionary_obj['features'][i]['properties'])
+        return list_of_records
+    
+    def convert_to_dataframe(list_of_records):
+        """ Converts the list of records to a Pandas dataframe """
+        dataframe_of_records = pd.DataFrame(list_of_records, columns = ['mag', 'place', 'time'])
+        return dataframe_of_records
+    
+    number_of_quakes = total_quakes(dictionary_obj)
+    list_of_records = extract_records(number_of_quakes, dictionary_obj)
+    dataframe_of_records = convert_to_dataframe(list_of_records)
+    
+    return dataframe_of_records
+
+def save_json_file(json_obj, dictionary_obj):
+    """ Obtains the report's epoch time, converts it to string of GMT datetime and writes the report to a text file with the GMT datetime as its title"""
+    def obtain_gmt(dictionary_obj):
+        """ Obtains the report's epoch time, reduces it but 1000 and converts it to GMT datetime"""
+        report_epoch_time = dictionary_obj['metadata']['generated']
+        normalized_epoch_time = int(report_epoch_time/1000)
+        gmt_datetime = time.gmtime(normalized_epoch_time)
+        return gmt_datetime
+    
+    def convert_gmt_to_str(gmt_datetime):
+        """ Converts the GMT date to a string"""
+        m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Nov", "Dec"]
+        str_gmt = f"{gmt_datetime.tm_year}{m[gmt_datetime.tm_mon]}{gmt_datetime.tm_mday}d{gmt_datetime.tm_hour}h{gmt_datetime.tm_min}m{gmt_datetime.tm_sec}s_GMT"
+        return str_gmt
+    
+    def write_file(str_gmt):
+        """ Writes the report to a text file and uses the string converted GMT datetime as the file's name"""
+        with open(str_gmt, 'w+') as file_obj:
+            file_obj.write(json_obj)
+        file_obj.close()
+        
+    gmt_datetime = obtain_gmt(dictionary_obj)
+    str_gmt = convert_gmt_to_str(gmt_datetime)
+    write_file(str_gmt)
+
+def json_to_dictionary(json_obj):
+    """ Deserializes the JSON object to, in this case, a dictionary """
+    dictionary_obj = json.loads(json_obj)
+    return dictionary_obj
+
+def get_json(url):
+    """ Opening an HTTP connection to the desired site, retreiving the JSON information and returning the JSON object. """
+    def open_connection(url):
+        """ Opening an HTTP connection to the desired site and returning an HTTP object. """
+        http_response_obj = urllib.request.urlopen(url)
+        return http_response_obj
+    
+    def acquire_json(http_response_obj):
+        """ Reading in the JSON information and returning a JSON object. """
+        json_obj = http_response_obj.read().decode("utf-8")
+        return json_obj
+    
+    http_response_obj = open_connection(url)
+    json_obj = acquire_json(http_response_obj)
+    
+    return json_obj
+
+
+def main():
+    url_str = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
+    
+    json_obj = get_json(url_str)
+    dictionary_obj = json_to_dictionary(json_obj)
+    #save_json_file(json_obj, dictionary_obj)
+    dataframe_of_records = records_in_dataframe(dictionary_obj)
+    print(dataframe_of_records.sort_index(by='mag', ascending=False))
+  
+            
+if __name__ == "__main__":
+    main()
